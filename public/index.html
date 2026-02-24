@@ -1,0 +1,638 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ICU Timetable (Cards + JSON + LocalStorage)</title>
+  <style>
+    :root{
+      --cell-h: 72px;
+      --gap: 8px;
+      --border: #d7d7d7;
+    }
+    body{ font-family: system-ui, -apple-system, "Segoe UI", sans-serif; margin: 16px; }
+    .app{ display: grid; grid-template-columns: 360px 1fr; gap: 16px; align-items: start; }
+
+    /* Left: palette */
+    .palette{ border: 1px solid var(--border); border-radius: 12px; padding: 12px; }
+    .palette h2{ font-size: 14px; margin: 0 0 8px; }
+    .row{ display:flex; gap:8px; align-items:center; flex-wrap: wrap; }
+    select, input[type="file"], button, textarea{ font: inherit; }
+    select, button, input[type="file"]{
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 10px;
+      background:#fff;
+      cursor:pointer;
+    }
+    textarea{
+      width: 100%;
+      min-height: 170px;
+      margin-top: 8px;
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      resize: vertical;
+    }
+    .hint{ font-size: 12px; color: #666; margin-top: 8px; line-height: 1.4; }
+    .split{ height:1px; background:#eee; margin: 10px 0; }
+    .toolbar{ display:flex; gap:8px; flex-wrap: wrap; margin-top: 8px; }
+    .mini{ font-size: 12px; color:#666; }
+
+    /* Cards */
+    .cards{
+      margin-top: 8px;
+      min-height: 180px;
+      padding: 8px;
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+    }
+    .cards.dragover{ outline: 2px solid #4c8bf5; outline-offset: 2px; }
+
+    .card{
+      border-radius: 10px;
+      padding: 10px;
+      margin: 8px 0;
+      cursor: grab;
+      box-shadow: 0 2px 8px rgba(0,0,0,.08);
+      user-select: none;
+      border: 1px solid rgba(0,0,0,.12);
+      background: #fff6a8; /* default */
+    }
+    .card:active{ cursor: grabbing; }
+    .card .t{ font-weight: 700; font-size: 13px; }
+    .card .m{ font-size: 12px; color:#444; margin-top: 4px; }
+
+    /* Right: board */
+    .board{ border: 1px solid var(--border); border-radius: 12px; padding: 12px; overflow: auto; }
+    .grid{
+      display: grid;
+      grid-template-columns: 92px repeat(5, minmax(150px, 1fr));
+      gap: var(--gap);
+      align-items: stretch;
+    }
+    .hdr{
+      font-weight: 700;
+      font-size: 13px;
+      padding: 8px;
+      background: #f5f6f7;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      text-align: center;
+    }
+    .time{
+      font-size: 24px;
+      padding: 8px;
+      background: #fafafa;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      display:flex; align-items:center; justify-content:center;
+      color:#444;
+      text-align:center;
+      line-height: 1.2;
+    }
+    .cell{
+      min-height: var(--cell-h);
+      border: 1px dashed var(--border);
+      border-radius: 10px;
+      background: #fff;
+      padding: 6px;
+
+      /* allow multiple cards in the same slot */
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .cell.dragover{ outline: 2px solid #4c8bf5; outline-offset: 2px; }
+    .cell-highlight{ background: rgba(255, 210, 80, 0.4) !important; outline: 2px solid #e8a020; outline-offset: -2px; }
+    .cell .card{ margin: 0; padding: 8px; } /* compact in cells */
+    .board-toolbar{ display: flex; gap: 8px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+    .board-toolbar label{ font-size: 13px; font-weight: 600; white-space: nowrap; }
+    .note{ font-size: 12px; color:#666; margin-top: 8px; }
+    .workflow-guide{ margin-top: 12px; padding: 10px 12px; background: #f5f6f7; border: 1px solid var(--border); border-radius: 10px; font-size: 12px; line-height: 1.6; color: #444; }
+    .workflow-guide p{ margin: 0 0 8px; }
+    .workflow-guide p:last-child{ margin-bottom: 0; }
+    .workflow-guide a{ color: #2563eb; text-decoration: none; }
+    .workflow-guide a:hover{ text-decoration: underline; }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <section class="palette">
+      <h2>授業カード（パレット）</h2>
+
+      <div class="row">
+        <label class="mini">学期</label>
+        <select id="termSelect">
+          <option value="spring">春</option>
+          <option value="autumn">秋</option>
+          <option value="winter">冬</option>
+        </select>
+        <button id="loadBtn" title="この学期の保存済みデータを読み込み">保存データ読込</button>
+      </div>
+
+      <div class="split"></div>
+
+      <div class="row">
+        <input id="fileInput" type="file" accept="application/json" />
+        <button id="importFileBtn">ファイル読込</button>
+      </div>
+
+      <textarea id="jsonText" placeholder='授業JSON（配列）を貼り付け→「貼り付け読込」&#10;例: [{"id":"ISC224a","title":"OS","teacher":"Kaburagi","color":"#fff6a8","slot":"5/TH"}]'></textarea>
+
+      <div class="toolbar">
+        <button id="importTextBtn">貼り付け読込</button>
+        <button id="exportBtn">slot付JSONを出力</button>
+        <button id="clearPlacementsBtn">配置クリア</button>
+        <button id="resetTermBtn">この学期を初期化</button>
+      </div>
+
+      <div class="hint">
+        - slot表記：<code>&lt;period&gt;/&lt;day&gt;</code>（例：<code>5/TH</code>, <code>L/TU</code>）<br/>
+        - day：<code>M, TU, W, TH, F</code> / period：<code>1,2,3,L,4,5,6,7</code><br/>
+        - 同じコマに複数カード配置OK（置換しません）<br/>
+        - 固定ブロックは灰色カードをJSONに入れてください（通常カードと同じ挙動）<br/>
+      </div>
+
+      <div id="cardsArea" class="cards" aria-label="palette dropzone"></div>
+
+      <div class="workflow-guide">
+        <p>コースリストから学期ごとのコース一覧をコピーして<br>
+        <a href="https://campus.icu.ac.jp/icumap/next_co/CourseList.aspx" target="_blank">→ ICU Course List</a></p>
+        <p>Difyツールで処理をするとこのWebツールで読み込めるJSON形式になります。<br>
+        <a href="https://udify.app/workflow/5yXwg5xETqzqlSzu" target="_blank">→ Dify：コース一覧 → JSON変換</a></p>
+        <p>Webツールで編集した時間割をJSONで出力したあと、Difyツールでルールのチェックができます。<br>
+        <a href="https://udify.app/workflow/ukuqR7tpYX5sJv5Z" target="_blank">→ Dify：時間割ルールチェック</a></p>
+      </div>
+    </section>
+
+    <section class="board">
+      <div class="board-toolbar">
+        <label for="ruleSelect">開講可能枠チェック：</label>
+        <select id="ruleSelect">
+          <option value="">— 条件を選択 —</option>
+          <option value="ge_j">一般教育（GE）日本語開講（J）</option>
+          <option value="ge_e">一般教育（GE）英語開講（E）</option>
+          <option value="foundation">基礎科目（Foundation）</option>
+          <option value="foundation_j_major">基礎科目 J メジャー選択要件科目</option>
+          <option value="foundation_e_major">基礎科目 E メジャー選択要件科目</option>
+          <option value="major_200_300">専攻科目（200–300番台）</option>
+          <option value="ela_1yr">ELA 1年生（ELA以外の履修可能時間帯）</option>
+          <option value="jlp">JLP（JLP以外の履修可能時間帯）</option>
+          <option value="clear">— 背景クリア —</option>
+        </select>
+      </div>
+      <div id="grid" class="grid"></div>
+      <div class="note">盤面：M/TU/W/TH/F × 1,2,3,L,4,5,6,7（L=Lunch）</div>
+    </section>
+  </div>
+
+<script>
+  // ===== ICU timetable shape (as specified) =====
+  const dayDefs = [
+    { code: "M",  label: "M"  },
+    { code: "TU", label: "TU" },
+    { code: "W",  label: "W"  },
+    { code: "TH", label: "TH" },
+    { code: "F",  label: "F"  },
+  ];
+
+  const periodDefs = [
+    { code: "1", label: "1" },
+    { code: "2", label: "2" },
+    { code: "3", label: "3" },
+    { code: "L", label: "L (Lunch)" },
+    { code: "4", label: "4" },
+    { code: "5", label: "5" },
+    { code: "6", label: "6" },
+    { code: "7", label: "7" },
+  ];
+
+  // ===== DOM =====
+  const termSelect = document.getElementById("termSelect");
+  const grid = document.getElementById("grid");
+  const cardsArea = document.getElementById("cardsArea");
+  const jsonText = document.getElementById("jsonText");
+  const fileInput = document.getElementById("fileInput");
+
+  // ===== state =====
+  let currentTerm = termSelect.value;
+
+  // courses: array of arbitrary objects, must include id (string)
+  // placements: { [id]: { day, period } }
+  let state = { courses: [], placements: {} };
+
+  // ===== localStorage keys =====
+  const keyCourses = (term) => `timetable_v3_courses_${term}`;
+  const keyPlacements = (term) => `timetable_v3_placements_${term}`;
+
+  function persistAll(){
+    localStorage.setItem(keyCourses(currentTerm), JSON.stringify(state.courses));
+    localStorage.setItem(keyPlacements(currentTerm), JSON.stringify(state.placements));
+  }
+
+  function loadFromStorage(term){
+    const rawCourses = localStorage.getItem(keyCourses(term));
+    const rawPlacements = localStorage.getItem(keyPlacements(term));
+    state.courses = rawCourses ? JSON.parse(rawCourses) : [];
+    state.placements = rawPlacements ? JSON.parse(rawPlacements) : {};
+    // drop orphan placements
+    const valid = new Set(state.courses.map(c => (c?.id ?? "").toString()));
+    for (const id of Object.keys(state.placements)) {
+      if (!valid.has(id)) delete state.placements[id];
+    }
+    renderAll();
+  }
+
+  // ===== slot parsing/formatting =====
+  function normToken(s){
+    return (s ?? "").toString().trim().toUpperCase().replace(/\s+/g,"");
+  }
+
+  function normalizeDay(d){
+    const t = normToken(d);
+    if (t === "M") return "M";
+    if (t === "TU") return "TU";
+    if (t === "W") return "W";
+    if (t === "TH") return "TH";
+    if (t === "F") return "F";
+    return null;
+  }
+
+  function normalizePeriod(p){
+    const t = normToken(p);
+    if (t === "L" || t === "LUNCH") return "L";
+    if (/^[1-7]$/.test(t)) return t;
+    return null;
+  }
+
+  // "5/TH" -> {period:"5", day:"TH"}
+  function parseSlot(slotStr){
+    const raw = (slotStr ?? "").toString().trim();
+    if (!raw) return null;
+    const parts = raw.split("/");
+    if (parts.length !== 2) return null;
+    const period = normalizePeriod(parts[0]);
+    const day = normalizeDay(parts[1]);
+    if (!period || !day) return null;
+    return { period, day };
+  }
+
+  function toSlotString(pos){
+    return `${pos.period}/${pos.day}`;
+  }
+
+  // ===== grid build =====
+  function buildGridOnce(){
+    grid.innerHTML = "";
+
+    // header
+    grid.appendChild(Object.assign(document.createElement("div"), { className:"hdr", textContent:"" }));
+    dayDefs.forEach(d => grid.appendChild(Object.assign(document.createElement("div"), { className:"hdr", textContent:d.label })));
+
+    // body
+    periodDefs.forEach(p => {
+      grid.appendChild(Object.assign(document.createElement("div"), { className:"time", textContent:p.label }));
+      dayDefs.forEach(d => {
+        const cell = document.createElement("div");
+        cell.className = "cell";
+        cell.dataset.day = d.code;
+        cell.dataset.period = p.code;
+        grid.appendChild(cell);
+      });
+    });
+  }
+
+  function findCell(day, period){
+    return [...document.querySelectorAll(".cell")]
+      .find(c => c.dataset.day === day && c.dataset.period === period);
+  }
+
+  // ===== cards =====
+  function cardDomId(id){ return `course_${id}`; }
+
+  function displayTitle(course){
+    const title = (course.title ?? course.name ?? "").toString().trim();
+    const id = (course.id ?? "").toString();
+    return title || id;
+  }
+
+  function makeCard(course){
+    const id = (course.id ?? "").toString();
+    const card = document.createElement("div");
+    card.className = "card";
+    card.id = cardDomId(id);
+    card.draggable = true;
+    card.dataset.courseId = id;
+
+    // keep color feature
+    const bg = course.color ? course.color.toString() : "#fff6a8";
+    card.style.background = bg;
+
+    const t = document.createElement("div");
+    t.className = "t";
+    t.textContent = displayTitle(course);
+
+    const m = document.createElement("div");
+    m.className = "m";
+    const teacher = course.teacher ? course.teacher.toString().trim() : "";
+    m.textContent = teacher ? `担当: ${teacher}` : "";
+
+    card.appendChild(t);
+    card.appendChild(m);
+
+    card.addEventListener("dragstart", (e) => {
+      e.dataTransfer.setData("text/plain", id);
+      e.dataTransfer.effectAllowed = "move";
+    });
+
+    return card;
+  }
+
+  // ===== render =====
+  function renderAll(){
+    // 1) palette: create all cards
+    cardsArea.innerHTML = "";
+    state.courses.forEach(c => {
+      if (!c || typeof c !== "object") return;
+      if (!c.id) return;
+      cardsArea.appendChild(makeCard(c));
+    });
+
+    // 2) clear all cells
+    document.querySelectorAll(".cell").forEach(cell => cell.innerHTML = "");
+
+    // 3) place cards according to placements (multi cards allowed => append)
+    for (const [id, pos] of Object.entries(state.placements || {})) {
+      const card = document.getElementById(cardDomId(id));
+      if (!card) continue;
+      const cell = findCell(pos.day, pos.period);
+      if (!cell) continue;
+      cell.appendChild(card);
+    }
+  }
+
+  function moveCardToPalette(id){
+    const card = document.getElementById(cardDomId(id));
+    if (!card) return;
+    delete state.placements[id];
+    cardsArea.appendChild(card);
+  }
+
+  // ===== DnD: board (delegate) =====
+  let hoverCell = null;
+  function clearHover(){
+    if (hoverCell) hoverCell.classList.remove("dragover");
+    hoverCell = null;
+  }
+
+  grid.addEventListener("dragover", (e) => {
+    const cell = e.target.closest?.(".cell");
+    if (!cell) return;
+    e.preventDefault();
+    if (hoverCell !== cell) {
+      clearHover();
+      hoverCell = cell;
+      cell.classList.add("dragover");
+    }
+  }, true);
+
+  grid.addEventListener("dragleave", (e) => {
+    const related = e.relatedTarget;
+    if (hoverCell && related && hoverCell.contains(related)) return;
+    clearHover();
+  }, true);
+
+  grid.addEventListener("drop", (e) => {
+    const cell = e.target.closest?.(".cell");
+    if (!cell) return;
+    e.preventDefault();
+    clearHover();
+
+    const id = e.dataTransfer.getData("text/plain");
+    if (!id) return;
+
+    const card = document.getElementById(cardDomId(id));
+    if (!card) return;
+
+    // multi placement in a cell => append, do not replace
+    cell.appendChild(card);
+    state.placements[id] = { day: cell.dataset.day, period: cell.dataset.period };
+    persistAll();
+  }, true);
+
+  // ===== DnD: palette (drop to return) =====
+  cardsArea.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    cardsArea.classList.add("dragover");
+  }, true);
+
+  cardsArea.addEventListener("dragleave", (e) => {
+    const related = e.relatedTarget;
+    if (related && cardsArea.contains(related)) return;
+    cardsArea.classList.remove("dragover");
+  }, true);
+
+  cardsArea.addEventListener("drop", (e) => {
+    e.preventDefault();
+    cardsArea.classList.remove("dragover");
+    const id = e.dataTransfer.getData("text/plain");
+    if (!id) return;
+    moveCardToPalette(id);
+    persistAll();
+  }, true);
+
+  // ===== JSON import/export =====
+  function parseCoursesJson(text){
+    let arr;
+    try { arr = JSON.parse(text); } catch { throw new Error("JSONの構文が不正です。"); }
+    if (!Array.isArray(arr)) throw new Error("JSONは配列（[]）である必要があります。");
+
+    const seen = new Set();
+    const courses = [];
+    const placements = {};
+
+    arr.forEach((obj, idx) => {
+      if (!obj || typeof obj !== "object") throw new Error(`index ${idx}: オブジェクトではありません。`);
+      if (!obj.id || typeof obj.id !== "string") throw new Error(`index ${idx}: "id"(string) は必須です。`);
+      const id = obj.id.trim();
+      if (!id) throw new Error(`index ${idx}: "id" が空です。`);
+      if (seen.has(id)) throw new Error(`"id" が重複しています: ${id}`);
+      seen.add(id);
+
+      // Keep all fields as-is (so you can add extra metadata later)
+      const c = { ...obj, id };
+
+      // normalize title for display if absent
+      if (c.title == null && c.name != null) c.title = c.name;
+
+      // slot -> placements
+      if (c.slot != null && c.slot !== "") {
+        const pos = parseSlot(c.slot);
+        if (!pos) throw new Error(`id=${id}: slotが不正です（例: "5/TH", "L/TU"）`);
+        placements[id] = { day: pos.day, period: pos.period };
+      }
+
+      courses.push(c);
+    });
+
+    return { courses, placements };
+  }
+
+  async function importFromFile(){
+    const file = fileInput.files?.[0];
+    if (!file) { alert("JSONファイルを選択してください。"); return; }
+    const text = await file.text();
+    try {
+      const parsed = parseCoursesJson(text);
+      state.courses = parsed.courses;
+      state.placements = parsed.placements; // import defines initial placements (no merge)
+      persistAll();
+      renderAll();
+      alert(`読み込み完了（${currentTerm}）：${state.courses.length}件`);
+    } catch (e) {
+      alert(`読み込み失敗: ${e.message}`);
+    }
+  }
+
+  function importFromTextarea(){
+    const text = jsonText.value.trim();
+    if (!text) { alert("テキストボックスにJSONを貼り付けてください。"); return; }
+    try {
+      const parsed = parseCoursesJson(text);
+      state.courses = parsed.courses;
+      state.placements = parsed.placements; // import defines initial placements (no merge)
+      persistAll();
+      renderAll();
+      alert(`読み込み完了（${currentTerm}）：${state.courses.length}件`);
+    } catch (e) {
+      alert(`読み込み失敗: ${e.message}`);
+    }
+  }
+
+  function exportCoursesWithSlots(){
+    // Output: same objects + updated slot (slot: null if unplaced)
+    const out = state.courses.map(c => {
+      const id = (c?.id ?? "").toString();
+      const pos = state.placements[id];
+      return {
+        ...c,
+        slot: pos ? toSlotString(pos) : null
+      };
+    });
+    jsonText.value = JSON.stringify(out, null, 2);
+    jsonText.focus();
+    jsonText.select();
+  }
+
+  // ===== buttons =====
+  document.getElementById("importFileBtn").addEventListener("click", importFromFile);
+  document.getElementById("importTextBtn").addEventListener("click", importFromTextarea);
+  document.getElementById("exportBtn").addEventListener("click", exportCoursesWithSlots);
+
+  document.getElementById("clearPlacementsBtn").addEventListener("click", () => {
+    state.placements = {};
+    persistAll();
+    renderAll();
+  });
+
+  document.getElementById("resetTermBtn").addEventListener("click", () => {
+    localStorage.removeItem(keyCourses(currentTerm));
+    localStorage.removeItem(keyPlacements(currentTerm));
+    state = { courses: [], placements: {} };
+    renderAll();
+    jsonText.value = "";
+  });
+
+  document.getElementById("loadBtn").addEventListener("click", () => {
+    loadFromStorage(currentTerm);
+  });
+
+  termSelect.addEventListener("change", () => {
+    currentTerm = termSelect.value;
+    loadFromStorage(currentTerm);
+  });
+
+  // ===== Rule highlight =====
+  const RULE_SLOTS = {
+    // 一般教育（GE）日本語開講（J）: MWF1/2/3, Tu3+Th2-3, Tu1-2+Th1
+    ge_j: [
+      "1/M","2/M","3/M","1/W","2/W","3/W","1/F","2/F","3/F",
+      "3/TU","2/TH","3/TH",
+      "1/TU","2/TU","1/TH"
+    ],
+    // 一般教育（GE）英語開講（E）: Super4全曜, Super5全曜, Tu3+Th2-3, Tu1-2+Th1
+    ge_e: [
+      "L/M","4/M","L/TU","4/TU","L/W","4/W","L/TH","4/TH","L/F","4/F",
+      "5/M","6/M","5/TU","6/TU","5/W","6/W","5/TH","6/TH","5/F","6/F",
+      "3/TU","2/TH","3/TH",
+      "1/TU","2/TU","1/TH"
+    ],
+    // 基礎科目（Foundation）: GE J と同じ枠
+    foundation: [
+      "1/M","2/M","3/M","1/W","2/W","3/W","1/F","2/F","3/F",
+      "3/TU","2/TH","3/TH",
+      "1/TU","2/TU","1/TH"
+    ],
+    // 基礎科目 J メジャー選択要件科目: ELA 1年生が取れる枠（MWF3, Tu3+Th2-3）
+    foundation_j_major: [
+      "3/M","3/W","3/F",
+      "3/TU","2/TH","3/TH"
+    ],
+    // 基礎科目 E メジャー選択要件科目: JLPが取れる枠（Super4 W/F, Super5 W/F, Tu3+Th2-3）
+    foundation_e_major: [
+      "L/W","4/W","L/F","4/F",
+      "5/W","6/W","5/F","6/F",
+      "3/TU","2/TH","3/TH"
+    ],
+    // 専攻科目（200-300番台）: ①MWF1 ②MWF2 ③Tu1-2+Th1 ④Super4 M/TH ⑤Super5 M/TH ⑥Super5 W/F
+    major_200_300: [
+      "1/M","1/W","1/F",
+      "2/M","2/W","2/F",
+      "1/TU","2/TU","1/TH",
+      "L/M","4/M","L/TH","4/TH",
+      "5/M","6/M","5/TH","6/TH",
+      "5/W","6/W","5/F","6/F"
+    ],
+    // ELA 1年生: A=MWF3, B=Tu3+Th2-3, E=Th1+Th4-7, F=全曜6-7
+    ela_1yr: [
+      "3/M","3/W","3/F",
+      "3/TU","2/TH","3/TH",
+      "1/TH","4/TH","5/TH","6/TH","7/TH",
+      "6/M","7/M","6/TU","7/TU","6/W","7/W","6/F","7/F"
+    ],
+    // JLP: A=Tu3+Th2-3, B=4-7 M/W/TH/F, C=Super4 M/TH, D=Super4 W/F, G=5-7 TU, H=3/M, I=1/TH
+    jlp: [
+      "3/TU","2/TH","3/TH",
+      "4/M","5/M","6/M","7/M","L/M",
+      "4/W","5/W","6/W","7/W","L/W",
+      "4/TH","5/TH","6/TH","7/TH","L/TH",
+      "4/F","5/F","6/F","7/F","L/F",
+      "5/TU","6/TU","7/TU",
+      "3/M","1/TH"
+    ]
+  };
+
+  function applyRule(ruleId){
+    document.querySelectorAll(".cell-highlight").forEach(c => c.classList.remove("cell-highlight"));
+    if (!ruleId || ruleId === "clear") return;
+    const slots = RULE_SLOTS[ruleId];
+    if (!slots) return;
+    const slotSet = new Set(slots);
+    document.querySelectorAll(".cell").forEach(cell => {
+      const slot = `${cell.dataset.period}/${cell.dataset.day}`;
+      if (slotSet.has(slot)) cell.classList.add("cell-highlight");
+    });
+  }
+
+  document.getElementById("ruleSelect").addEventListener("change", (e) => {
+    applyRule(e.target.value);
+  });
+
+  // ===== init =====
+  buildGridOnce();
+  loadFromStorage(currentTerm);
+</script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+# PDF files (too large for GitHub)
+*.pdf
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+*.swp

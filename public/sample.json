@@ -1,0 +1,6 @@
+[
+  {"id":"ISC224a","title":"OS","teacher":"Kaburagi","color":"#fff6a8","slot":"5/TH"},
+  {"id":"ISC224b","title":"OS","teacher":"Kaburagi","color":"#fff6a8","slot":"6/TH"},
+  {"id":"BLOCK_FACULTY_MT","title":"教授会","color":"#d0d0d0","slot":"5/TU"},
+  {"id":"BLOCK_CHAPEL","title":"Chapel Hour","color":"#d0d0d0","slot":"L/TU"}
+]
