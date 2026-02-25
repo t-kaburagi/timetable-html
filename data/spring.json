@@ -23,5 +23,73 @@
   {"term":"spring","id":"QNMC505a","title":"QNMC505 数理科学特論 I (E)","language":"E","teacher":"DOU, Xiaoling","units":2,"color":"#a8d4f8","slot":"2/TU"},
   {"term":"spring","id":"QNMC505b","title":"QNMC505 数理科学特論 I (E)","language":"E","teacher":"DOU, Xiaoling","units":2,"color":"#a8d4f8","slot":"3/TU"},
   {"term":"spring","id":"QNMC506a","title":"QNMC506 数理科学特論 II (E)","language":"E","teacher":"KABURAGI, Takashi","units":2,"color":"#a8d4f8","slot":"2/F"},
-  {"term":"spring","id":"QNMC506b","title":"QNMC506 数理科学特論 II (E)","language":"E","teacher":"KABURAGI, Takashi","units":2,"color":"#a8d4f8","slot":"3/F"}
-]
+  {"term":"spring","id":"QNMC506b","title":"QNMC506 数理科学特論 II (E)","language":"E","teacher":"KABURAGI, Takashi","units":2,"color":"#a8d4f8","slot":"3/F"},
+  {"term":"spring","id":"ISC221a","title":"ISC221 アルゴリズムとデータ構造 (J)","language":"J","teacher":"PTL *","units":2,"color":"#fff6a8","slot":"5/W"},
+  {"term":"spring","id":"ISC221b","title":"ISC221 アルゴリズムとデータ構造 (J)","language":"J","teacher":"PTL *","units":2,"color":"#fff6a8","slot":"6/W","notes":"optional/parenthesized slot"},
+  {"term":"spring","id":"ISC221c","title":"ISC221 アルゴリズムとデータ構造 (J)","language":"J","teacher":"PTL *","units":2,"color":"#fff6a8","slot":"7/W","notes":"optional/parenthesized slot"},
+{
+"term": "spring",
+"id": "GEN026a",
+"title": "GEN026 Ｎ２：データサイエンスの考え方 (J)",
+"language": "J",
+"teacher": "ISHIBASHI, Keisuke / KANAZAWA, Yuichiro",
+"units": 3,
+"color": "#b8f0c8",
+"slot": "3/TU",
+"notes": ""
+},
+{
+"term": "spring",
+"id": "GEN026b",
+"title": "GEN026 Ｎ２：データサイエンスの考え方 (J)",
+"language": "J",
+"teacher": "ISHIBASHI, Keisuke / KANAZAWA, Yuichiro",
+"units": 3,
+"color": "#b8f0c8",
+"slot": "2/TH",
+"notes": ""
+},
+{
+"term": "spring",
+"id": "GEN026c",
+"title": "GEN026 Ｎ２：データサイエンスの考え方 (J)",
+"language": "J",
+"teacher": "ISHIBASHI, Keisuke / KANAZAWA, Yuichiro",
+"units": 3,
+"color": "#b8f0c8",
+"slot": "3/TH",
+"notes": ""
+},
+{
+"term": "spring",
+"id": "ISC101a",
+"title": "ISC101 情報倫理 (J)",
+"language": "J",
+"teacher": "ISHIBASHI, Keisuke",
+"units": 2,
+"color": "#b8f0c8",
+"slot": "3/M",
+"notes": ""
+},
+{
+"term": "spring",
+"id": "ISC101b",
+"title": "ISC101 情報倫理 (J)",
+"language": "J",
+"teacher": "ISHIBASHI, Keisuke",
+"units": 2,
+"color": "#b8f0c8",
+"slot": "3/W",
+"notes": ""
+},
+{
+"term": "spring",
+"id": "QADT601a",
+"title": "QADT601 研究者のための技法 I - アカデミック・プレゼンテーション (E)",
+"language": "E",
+"teacher": "DAWSON, Walter P. / MONTGOMERY, Heather A. / RO, Johannes Unsok / ISHIBASHI, Keisuke / ISHIO, Yoshito",
+"units": 2,
+"color": "#d0d0d0",
+"slot": null,
+"notes": "8/M"
+}]
